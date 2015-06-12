@@ -297,6 +297,10 @@ CPU.prototype.addr = function addRegs(reg1, reg2) {
 	this.reg.writeUInt8(result, reg1);
 };
 
+CPU.prototype.addi = function addRegToI(reg){
+ this.i.writeUInt16BE(this.i.readUInt16BE(0) + this.reg.readUInt8(reg));
+}
+
 /**
  * 8xy1 - OR Vx, Vy
  *
@@ -486,3 +490,19 @@ CPU.prototype.wkp = function waitKeyPress(reg, key) {
   }
  })
 };
+
+CPU.prototype.moveft = function moveFontPosToReg(reg, dig){
+ this.reg.writeUInt8(dig*5);
+}
+
+CPU.prototype.movebcd = function moveBCDOfRegToMem(reg){
+ var bcd = this.reg.readUInt8(reg);
+ var bcd100 = Math.floor(bcd / 100);
+ var bcd10 = Math.floor((bcd - (bcd100 * 100)) / 10);
+ var bcd1 = bcd - ((bcd100 * 100) + (bcd10 * 10));
+ var i = this.i.readUInt16BE(0);
+ 
+ this.motherboard.memory.buffer.writeUInt8(bcd100, i);
+ this.motherboard.memory.buffer.writeUInt8(bdc10, ++i);
+ this.motherboard.memory.buffer.writeUint8(bdc1, ++i);
+}
