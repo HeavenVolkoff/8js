@@ -3,13 +3,12 @@
  */
 
 function Input() {
+ EventEmitter2.call(this);
 	this.keyboard = new Array(16);
 }
 
+heir.inherit(Input, EventEmitter2);
+
 Input.prototype.isKeyPressed = function isKeyPressed(key) {
 	return !!this.keyboard[key];
-};
-
-Input.prototype.waitKeyPress = function waitKeyPress(key) {
-
 };

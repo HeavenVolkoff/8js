@@ -19,17 +19,18 @@ function getRandomInt(min, max) {
  * @constructor
  */
 function Stack() {
-	var buffer = new Buffer(16);
+	var buffer = new Buffer(16 * 2);
 	buffer.fill(0x0);
 	var pointer = 0;
 
 	this.push = function push(value) {
-		buffer.writeUInt8(value, pointer);
-		pointer++;
+		buffer.writeUInt16BE(value, pointer);
+		pointer += 2;
 	};
 
 	this.pop = function pop() {
-		return buffer[pointer--];
+	 pointer -= 2;
+		return buffer.readUInt16BE(pointer + 2);
 	}
 }
 
@@ -56,7 +57,8 @@ function CPU(motherboard) {
 	 *
 	 * @type {number}
 	 */
-	this.i = 0;
+	this.i = new Buffer(2);
+	this.i.fill(0x0)
 
 	/**
 	 * CPU Program Counter
@@ -65,7 +67,7 @@ function CPU(motherboard) {
 	 *
 	 * @type {number}
 	 */
-	this.pc = 0x200;
+	this.pc = new Buffer("0200", "hex");
 
 	/**
 	 * CPU stack
@@ -101,7 +103,7 @@ function CPU(motherboard) {
  * @param address
  */
 CPU.prototype.return = function returnFromSubroutine(address) {
-	this.pc = this.stack.pop()
+	this.pc.writeUInt16BE(this.stack.pop());
 };
 
 /**
@@ -113,7 +115,7 @@ CPU.prototype.return = function returnFromSubroutine(address) {
  * @param address
  */
 CPU.prototype.jump = function jumpToAddress(address) {
-	this.pc = address;
+	this.pc.writeUInt16BE(address);
 };
 
 /**
@@ -125,7 +127,7 @@ CPU.prototype.jump = function jumpToAddress(address) {
  * @param address
  */
 CPU.prototype.jumpr = function jumpToAddressPlusV0(address) {
-	this.pc += 2
+ this.pc.writeUInt16BE(this.pc.readUInt16BE(0) + 2);
 };
 
 /**
@@ -138,8 +140,8 @@ CPU.prototype.jumpr = function jumpToAddressPlusV0(address) {
  * @param address
  */
 CPU.prototype.call = function callSubroutine(address) {
-	this.stack.push(this.pc);
-	this.pc = address;
+	this.stack.push(this.pc.readUInt16BE(0));
+	this.pc.writeUInt16BE(address);
 };
 
 /**
@@ -153,7 +155,7 @@ CPU.prototype.call = function callSubroutine(address) {
  */
 CPU.prototype.se = function skipEqual(reg, value) {
 	if (this.reg[reg] === value) {
-		this.pc += 2
+		this.pc.writeUInt16BE(this.pc.readUInt16BE(0) + 2);
 	}
 };
 
@@ -168,7 +170,7 @@ CPU.prototype.se = function skipEqual(reg, value) {
  */
 CPU.prototype.ser = function skipEqualBetweenRegs(reg1, reg2) {
 	if (this.reg[reg1] === this.reg[reg2]) {
-		this.pc += 2
+		this.pc.writeUInt16BE(this.pc.readUInt16BE(0) + 2);
 	}
 };
 
@@ -183,7 +185,7 @@ CPU.prototype.ser = function skipEqualBetweenRegs(reg1, reg2) {
  */
 CPU.prototype.sne = function skipNotEqual(reg, value) {
 	if (this.reg[reg] !== value) {
-		this.pc += 2
+		this.pc.writeUInt16BE(this.pc.readUInt16BE(0) + 2);
 	}
 };
 
@@ -198,7 +200,7 @@ CPU.prototype.sne = function skipNotEqual(reg, value) {
  */
 CPU.prototype.sner = function skipNotEqualRegs(reg1, reg2) {
 	if (this.reg[reg1] !== this.reg[reg2]) {
-		this.pc += 2
+		this.pc.writeUInt16BE(this.pc.readUInt16BE(0) + 2);
 	}
 };
 
@@ -237,7 +239,7 @@ CPU.prototype.mover = function moveRegToReg(reg1, reg2) {
  * @param address
  */
 CPU.prototype.movei = function moveAddrToI(address) {
-	this.i = address;
+	this.i.writeUInt16BE(address);
 };
 
 /**
@@ -248,8 +250,16 @@ CPU.prototype.movei = function moveAddrToI(address) {
  *
  * @param reg
  */
-CPU.prototype.movedt = function moveDelayTimeToReg(reg) {
+CPU.prototype.movedtr = function moveDelayTimeToReg(reg) {
 	this.reg.writeUInt8(this.timer.delay);
+};
+
+CPU.prototype.moverdt = function moveRegToDelayTime(reg) {
+ this.timer.delay = this.reg[reg];
+};
+
+CPU.prototype.moverst = function moveRegToSoundTime(reg) {
+ this.timer.sound = this.reg[reg];
 };
 
 /**
@@ -427,7 +437,7 @@ CPU.prototype.dwr = function display(regX, regY, nibble) {
 	this.reg.writeUInt8(
 		this.motherboard.video.drawSprite(regX, regY,
 			{
-				data: this.motherboard.memory.buffer.slice(this.i, nibble),
+				data: this.motherboard.memory.buffer.slice(this.i.readUInt16BE(0), nibble),
 				widht: 8,
 				height: nibble
 			}
@@ -446,7 +456,7 @@ CPU.prototype.dwr = function display(regX, regY, nibble) {
  */
 CPU.prototype.skp = function skipWhenKeyIsPressed(reg) {
 	if (this.motherboard.input.isKeyPressed(this.reg[reg])) {
-		this.pc += 2
+		this.pc.writeUInt16BE(this.pc.readUInt16BE(0) + 2);
 	}
 };
 
@@ -461,14 +471,18 @@ CPU.prototype.skp = function skipWhenKeyIsPressed(reg) {
  */
 CPU.prototype.sknp = function skipWhenKeyIsNotPressed(reg) {
 	if (!this.motherboard.input.isKeyPressed(this.reg[reg])) {
-		this.pc += 2
+		this.pc.writeUInt16BE(this.pc.readUInt16BE(0) + 2);
 	}
 };
 
 
 CPU.prototype.wkp = function waitKeyPress(reg, key) {
-	this.halt = true;
-
-	this.reg.writeUInt8(
-	);
+ this.halt = true;
+ 
+ this.motherboard.input.once("keypress", function(keyVal){
+  if(key === keyVal){
+   this.reg.writeUInt8(key, reg);
+   this.halt = false;
+  }
+ })
 };
