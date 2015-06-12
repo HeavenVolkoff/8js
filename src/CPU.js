@@ -23,14 +23,14 @@ function Stack() {
 	buffer.fill(0x0);
 	var pointer = 0;
 
-	this.push = function push(value) {
-		buffer.writeUInt16BE(value, pointer);
+	this.pushFrom = function pushFrom(buff) {
+		buff.copy(buffer, pointer);
 		pointer += 2;
 	};
 
-	this.pop = function pop() {
-	 pointer -= 2;
-		return buffer.readUInt16BE(pointer + 2);
+	this.popTo = function popTo(buff) {
+		buffer.copy(buff, 0, pointer, buff.length);
+		pointer -= 2;
 	}
 }
 
@@ -55,17 +55,17 @@ function CPU(motherboard) {
 	 * Index Register
 	 * Value Range: 0x000 - 0xFFF
 	 *
-	 * @type {number}
+	 * @type {Buffer}
 	 */
 	this.i = new Buffer(2);
-	this.i.fill(0x0)
+	this.i.fill(0x0);
 
 	/**
 	 * CPU Program Counter
 	 * Value Range: 0x000 - 0xFFF
 	 * Starts at 0x200 (see Memory)
 	 *
-	 * @type {number}
+	 * @type {Buffer}
 	 */
 	this.pc = new Buffer("0200", "hex");
 
@@ -93,6 +93,10 @@ function CPU(motherboard) {
 	this.motherboard = motherboard;
 }
 
+CPU.prototype.nextInstruction = function incrementsPC() {
+	this.pc.writeUInt16BE(this.pc.readUInt16BE(0) + 2);
+};
+
 /**
  * 00EE - RET
  *
@@ -103,7 +107,7 @@ function CPU(motherboard) {
  * @param address
  */
 CPU.prototype.return = function returnFromSubroutine(address) {
-	this.pc.writeUInt16BE(this.stack.pop());
+	this.stack.popTo(this.pc);
 };
 
 /**
@@ -121,13 +125,13 @@ CPU.prototype.jump = function jumpToAddress(address) {
 /**
  * Bnnn - JP V0, addr
  *
- *Jump to location nnn + V0.
- *The program counter is set to nnn plus the value of V0.
+ * Jump to location nnn + V0.
+ * The program counter is set to nnn plus the value of V0.
  *
  * @param address
  */
 CPU.prototype.jumpr = function jumpToAddressPlusV0(address) {
- this.pc.writeUInt16BE(this.pc.readUInt16BE(0) + 2);
+	this.pc.writeUInt16BE(address + this.reg.readUInt8(0));
 };
 
 /**
@@ -140,7 +144,7 @@ CPU.prototype.jumpr = function jumpToAddressPlusV0(address) {
  * @param address
  */
 CPU.prototype.call = function callSubroutine(address) {
-	this.stack.push(this.pc.readUInt16BE(0));
+	this.stack.pushFrom(this.pc);
 	this.pc.writeUInt16BE(address);
 };
 
@@ -155,8 +159,9 @@ CPU.prototype.call = function callSubroutine(address) {
  */
 CPU.prototype.se = function skipEqual(reg, value) {
 	if (this.reg[reg] === value) {
-		this.pc.writeUInt16BE(this.pc.readUInt16BE(0) + 2);
+		this.nextInstruction();
 	}
+	this.nextInstruction();
 };
 
 /**
@@ -170,8 +175,9 @@ CPU.prototype.se = function skipEqual(reg, value) {
  */
 CPU.prototype.ser = function skipEqualBetweenRegs(reg1, reg2) {
 	if (this.reg[reg1] === this.reg[reg2]) {
-		this.pc.writeUInt16BE(this.pc.readUInt16BE(0) + 2);
+		this.nextInstruction();
 	}
+	this.nextInstruction();
 };
 
 /**
@@ -185,8 +191,9 @@ CPU.prototype.ser = function skipEqualBetweenRegs(reg1, reg2) {
  */
 CPU.prototype.sne = function skipNotEqual(reg, value) {
 	if (this.reg[reg] !== value) {
-		this.pc.writeUInt16BE(this.pc.readUInt16BE(0) + 2);
+		this.nextInstruction();
 	}
+	this.nextInstruction();
 };
 
 /**
@@ -200,8 +207,9 @@ CPU.prototype.sne = function skipNotEqual(reg, value) {
  */
 CPU.prototype.sner = function skipNotEqualRegs(reg1, reg2) {
 	if (this.reg[reg1] !== this.reg[reg2]) {
-		this.pc.writeUInt16BE(this.pc.readUInt16BE(0) + 2);
+		this.nextInstruction();
 	}
+	this.nextInstruction();
 };
 
 /**
@@ -215,6 +223,7 @@ CPU.prototype.sner = function skipNotEqualRegs(reg1, reg2) {
  */
 CPU.prototype.move = function moveValueToReg(reg, value) {
 	this.reg.writeUInt8(value, reg);
+	this.nextInstruction();
 };
 
 /**
@@ -228,6 +237,7 @@ CPU.prototype.move = function moveValueToReg(reg, value) {
  */
 CPU.prototype.mover = function moveRegToReg(reg1, reg2) {
 	this.reg.copy(this.reg, reg1, reg2, reg2 + 1);
+	this.nextInstruction();
 };
 
 /**
@@ -240,6 +250,7 @@ CPU.prototype.mover = function moveRegToReg(reg1, reg2) {
  */
 CPU.prototype.movei = function moveAddrToI(address) {
 	this.i.writeUInt16BE(address);
+	this.nextInstruction();
 };
 
 /**
@@ -252,14 +263,17 @@ CPU.prototype.movei = function moveAddrToI(address) {
  */
 CPU.prototype.movedtr = function moveDelayTimeToReg(reg) {
 	this.reg.writeUInt8(this.timer.delay);
+	this.nextInstruction();
 };
 
 CPU.prototype.moverdt = function moveRegToDelayTime(reg) {
- this.timer.delay = this.reg[reg];
+	this.timer.delay = this.reg[reg];
+	this.nextInstruction();
 };
 
 CPU.prototype.moverst = function moveRegToSoundTime(reg) {
- this.timer.sound = this.reg[reg];
+	this.timer.sound = this.reg[reg];
+	this.nextInstruction();
 };
 
 /**
@@ -273,6 +287,7 @@ CPU.prototype.moverst = function moveRegToSoundTime(reg) {
  */
 CPU.prototype.add = function addValue(reg, value) {
 	this.reg.writeUInt8(this.reg[reg] + value, reg);
+	this.nextInstruction();
 };
 
 /**
@@ -295,11 +310,14 @@ CPU.prototype.addr = function addRegs(reg1, reg2) {
 	}
 
 	this.reg.writeUInt8(result, reg1);
+
+	this.nextInstruction();
 };
 
-CPU.prototype.addi = function addRegToI(reg){
- this.i.writeUInt16BE(this.i.readUInt16BE(0) + this.reg.readUInt8(reg));
-}
+CPU.prototype.addi = function addRegToI(reg) {
+	this.i.writeUInt16BE(this.i.readUInt16BE(0) + this.reg.readUInt8(reg));
+	this.nextInstruction();
+};
 
 /**
  * 8xy1 - OR Vx, Vy
@@ -314,6 +332,7 @@ CPU.prototype.addi = function addRegToI(reg){
  */
 CPU.prototype.or = function or(reg1, reg2) {
 	this.reg.writeUInt8(this.reg[reg1] | this.reg[reg2], reg1);
+	this.nextInstruction();
 };
 
 /**
@@ -329,6 +348,7 @@ CPU.prototype.or = function or(reg1, reg2) {
  */
 CPU.prototype.and = function and(reg1, reg2) {
 	this.reg.writeUInt8(this.reg[reg1] & this.reg[reg2], reg1);
+	this.nextInstruction();
 };
 
 /**
@@ -344,6 +364,7 @@ CPU.prototype.and = function and(reg1, reg2) {
  */
 CPU.prototype.xor = function xor(reg1, reg2) {
 	this.reg.writeUInt8(this.reg[reg1] ^ this.reg[reg2], reg1);
+	this.nextInstruction();
 };
 
 /**
@@ -363,6 +384,7 @@ CPU.prototype.subr = function subRegs(reg1, reg2) {
 	}
 
 	this.reg.writeUInt8(this.reg[reg1] - this.reg[reg2], reg1);
+	this.nextInstruction();
 };
 
 /**
@@ -382,6 +404,7 @@ CPU.prototype.subrn = function subRegsN(reg1, reg2) {
 	}
 
 	this.reg.writeUInt8(this.reg[reg2] - this.reg[reg1], reg1);
+	this.nextInstruction();
 };
 
 /**
@@ -395,6 +418,7 @@ CPU.prototype.subrn = function subRegsN(reg1, reg2) {
 CPU.prototype.shr = function shiftRigth(reg) {
 	this.reg.writeUInt8(this.reg[reg] & 0x1, 0xF);
 	this.reg.writeUInt8(this.reg[reg] >> 1, reg);
+	this.nextInstruction();
 };
 
 /**
@@ -408,6 +432,7 @@ CPU.prototype.shr = function shiftRigth(reg) {
 CPU.prototype.shl = function shiftLeft(reg) {
 	this.reg.writeUInt8(this.reg[reg] >> 0xF, 0xF);
 	this.reg.writeUInt8(this.reg[reg] << 1, reg);
+	this.nextInstruction();
 };
 
 /**
@@ -422,6 +447,7 @@ CPU.prototype.shl = function shiftLeft(reg) {
  */
 CPU.prototype.rnd = function generateRandom(reg, byte) {
 	this.reg.writeUInt8(getRandomInt(0, 256) & byte, reg);
+	this.nextInstruction();
 };
 
 /**
@@ -447,6 +473,7 @@ CPU.prototype.dwr = function display(regX, regY, nibble) {
 			}
 		)
 		, 0xF);
+	this.nextInstruction();
 };
 
 /**
@@ -460,8 +487,9 @@ CPU.prototype.dwr = function display(regX, regY, nibble) {
  */
 CPU.prototype.skp = function skipWhenKeyIsPressed(reg) {
 	if (this.motherboard.input.isKeyPressed(this.reg[reg])) {
-		this.pc.writeUInt16BE(this.pc.readUInt16BE(0) + 2);
+		this.nextInstruction();
 	}
+	this.nextInstruction();
 };
 
 /**
@@ -475,34 +503,50 @@ CPU.prototype.skp = function skipWhenKeyIsPressed(reg) {
  */
 CPU.prototype.sknp = function skipWhenKeyIsNotPressed(reg) {
 	if (!this.motherboard.input.isKeyPressed(this.reg[reg])) {
-		this.pc.writeUInt16BE(this.pc.readUInt16BE(0) + 2);
+		this.nextInstruction();
 	}
+	this.nextInstruction();
 };
 
 
 CPU.prototype.wkp = function waitKeyPress(reg, key) {
- this.halt = true;
- 
- this.motherboard.input.once("keypress", function(keyVal){
-  if(key === keyVal){
-   this.reg.writeUInt8(key, reg);
-   this.halt = false;
-  }
- })
+	var self = this;
+	this.halt = true;
+
+	this.motherboard.input.once("keypress", function (keyVal) {
+		if (key === keyVal) {
+			self.reg.writeUInt8(key, reg);
+			self.halt = false;
+			self.nextInstruction();
+		}
+	})
 };
 
-CPU.prototype.moveft = function moveFontPosToReg(reg, dig){
- this.reg.writeUInt8(dig*5);
-}
+CPU.prototype.moveft = function moveFontPosToReg(reg) {
+	this.i.writeUInt16BE(this.reg.readUInt8(0) * 5, 0);
+	this.nextInstruction();
+};
 
-CPU.prototype.movebcd = function moveBCDOfRegToMem(reg){
- var bcd = this.reg.readUInt8(reg);
- var bcd100 = Math.floor(bcd / 100);
- var bcd10 = Math.floor((bcd - (bcd100 * 100)) / 10);
- var bcd1 = bcd - ((bcd100 * 100) + (bcd10 * 10));
- var i = this.i.readUInt16BE(0);
- 
- this.motherboard.memory.buffer.writeUInt8(bcd100, i);
- this.motherboard.memory.buffer.writeUInt8(bdc10, ++i);
- this.motherboard.memory.buffer.writeUint8(bdc1, ++i);
-}
+
+CPU.prototype.movebcd = function moveBCDOfRegToMem(reg) {
+	var bcd = this.reg.readUInt8(reg);
+	var bcd100 = bcd / 100;
+	var bcd10 = (bcd / 10) % 10;
+	var bcd1 = bcd % 10;
+	var i = this.i.readUInt16BE(0);
+
+	this.motherboard.memory.buffer.writeUInt8(bcd100, i);
+	this.motherboard.memory.buffer.writeUInt8(bcd10, ++i);
+	this.motherboard.memory.buffer.writeUInt8(bcd1, ++i);
+	this.nextInstruction();
+};
+
+CPU.prototype.store = function storeRegs(reg) {
+	this.reg.copy(this.motherboard.memory.buffer, this.i.readUInt16BE(0), 0, reg + 1);
+	this.nextInstruction();
+};
+
+CPU.prototype.read = function storeRegs(reg) {
+	this.motherboard.memory.buffer.copy(this.reg, 0, this.i.readUInt16BE(0), reg + 1);
+	this.nextInstruction();
+};

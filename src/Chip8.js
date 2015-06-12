@@ -34,4 +34,5 @@ function Chip8(rom) {
 
 Chip8.prototype.cycle = function emulateCycle() {
 	var opcode = this.memory.buffer.readUInt16BE(this.cpu.pc);
+
 };
