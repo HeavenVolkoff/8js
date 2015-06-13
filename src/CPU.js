@@ -88,13 +88,25 @@ function CPU(motherboard) {
 		sound: 0
 	};
 
+	/**
+	 * Used to stop cpu execution
+	 *
+	 * @type {boolean}
+	 */
 	this.halt = false;
 
+	/**
+	 * Reference to the object that handle the connections
+	 */
 	this.motherboard = motherboard;
 }
 
 CPU.prototype.nextInstruction = function incrementsPC() {
 	this.pc.writeUInt16BE(this.pc.readUInt16BE(0) + 2);
+};
+
+CPU.prototype.cls = function clearScreen() {
+	this.motherboard.video.clear();
 };
 
 /**
@@ -103,10 +115,8 @@ CPU.prototype.nextInstruction = function incrementsPC() {
  * Return from a subroutine.
  * The interpreter sets the program counter to the address at the top of the stack, then subtracts 1 from the stack
  * pointer.
- *
- * @param address
  */
-CPU.prototype.return = function returnFromSubroutine(address) {
+CPU.prototype.return = function returnFromSubroutine() {
 	this.stack.popTo(this.pc);
 };
 
@@ -248,7 +258,7 @@ CPU.prototype.mover = function moveRegToReg(reg1, reg2) {
  *
  * @param address
  */
-CPU.prototype.movei = function moveAddrToI(address) {
+CPU.prototype.movei = function moveAddressToI(address) {
 	this.i.writeUInt16BE(address);
 	this.nextInstruction();
 };
@@ -262,15 +272,31 @@ CPU.prototype.movei = function moveAddrToI(address) {
  * @param reg
  */
 CPU.prototype.movedtr = function moveDelayTimeToReg(reg) {
-	this.reg.writeUInt8(this.timer.delay);
+	this.reg.writeUInt8(this.timer.delay, reg);
 	this.nextInstruction();
 };
 
+/**
+ * Fx15 - LD DT, Vx
+ *
+ * Set delay timer = Vx.
+ * DT is set equal to the value of Vx.
+ *
+ * @param reg
+ */
 CPU.prototype.moverdt = function moveRegToDelayTime(reg) {
 	this.timer.delay = this.reg[reg];
 	this.nextInstruction();
 };
 
+/**
+ * Fx18 - LD ST, Vx
+ *
+ * Set sound timer = Vx.
+ * ST is set equal to the value of Vx.
+ *
+ * @param reg
+ */
 CPU.prototype.moverst = function moveRegToSoundTime(reg) {
 	this.timer.sound = this.reg[reg];
 	this.nextInstruction();
@@ -314,6 +340,14 @@ CPU.prototype.addr = function addRegs(reg1, reg2) {
 	this.nextInstruction();
 };
 
+/**
+ * Fx1E - ADD I, Vx
+ *
+ * Set I = I + Vx.
+ * The values of I and Vx are added, and the results are stored in I.
+ *
+ * @param reg
+ */
 CPU.prototype.addi = function addRegToI(reg) {
 	this.i.writeUInt16BE(this.i.readUInt16BE(0) + this.reg.readUInt8(reg));
 	this.nextInstruction();
@@ -493,7 +527,7 @@ CPU.prototype.skp = function skipWhenKeyIsPressed(reg) {
 };
 
 /**
- * Ex9E - SKP Vx
+ * ExA1 - SKNP Vx
  *
  * Skip next instruction if key with the value of Vx is not pressed.
  * Checks the keyboard, and if the key corresponding to the value of Vx is currently in the up position, PC is
@@ -508,26 +542,45 @@ CPU.prototype.sknp = function skipWhenKeyIsNotPressed(reg) {
 	this.nextInstruction();
 };
 
-
-CPU.prototype.wkp = function waitKeyPress(reg, key) {
+/**
+ * Fx0A - LD Vx, K
+ *
+ * Wait for a key press, store the value of the key in Vx.
+ * All execution stops until a key is pressed, then the value of that key is stored in Vx.
+ *
+ * @param reg
+ */
+CPU.prototype.wkp = function waitKeyPress(reg) {
 	var self = this;
 	this.halt = true;
 
-	this.motherboard.input.once("keypress", function (keyVal) {
-		if (key === keyVal) {
+	this.motherboard.input.once("keypress", function (key) {
 			self.reg.writeUInt8(key, reg);
 			self.halt = false;
 			self.nextInstruction();
-		}
 	})
 };
 
+/**
+ * Fx29 - LD F, Vx
+ * Set I = location of sprite for digit Vx.
+ * The value of I is set to the location for the hexadecimal sprite corresponding to the value of Vx.
+ *
+ * @param reg
+ */
 CPU.prototype.moveft = function moveFontPosToReg(reg) {
-	this.i.writeUInt16BE(this.reg.readUInt8(0) * 5, 0);
+	this.i.writeUInt16BE(this.reg.readUInt8(0) * 5, reg);
 	this.nextInstruction();
 };
 
-
+/**
+ * Fx33 - LD B, Vx
+ * Store BCD representation of Vx in memory locations I, I+1, and I+2.
+ * The interpreter takes the decimal value of Vx, and places the hundreds digit in memory at location in I, the tens
+ * digit at location I+1, and the ones digit at location I+2.
+ *
+ * @param reg
+ */
 CPU.prototype.movebcd = function moveBCDOfRegToMem(reg) {
 	var bcd = this.reg.readUInt8(reg);
 	var bcd100 = bcd / 100;
@@ -541,12 +594,26 @@ CPU.prototype.movebcd = function moveBCDOfRegToMem(reg) {
 	this.nextInstruction();
 };
 
-CPU.prototype.store = function storeRegs(reg) {
+/**
+ * Fx55 - LD [I], Vx
+ * Store registers V0 through Vx in memory starting at location I.
+ * The interpreter copies the values of registers V0 through Vx into memory, starting at the address in I.
+ *
+ * @param reg
+ */
+CPU.prototype.store = function storeRegsFromMemory(reg) {
 	this.reg.copy(this.motherboard.memory.buffer, this.i.readUInt16BE(0), 0, reg + 1);
 	this.nextInstruction();
 };
 
-CPU.prototype.read = function storeRegs(reg) {
+/**
+ * Fx65 - LD Vx, [I]
+ * Read registers V0 through Vx from memory starting at location I.
+ * The interpreter reads values from memory starting at location I into registers V0 through Vx.
+ *
+ * @param reg
+ */
+CPU.prototype.read = function readRegsFromMemory(reg) {
 	this.motherboard.memory.buffer.copy(this.reg, 0, this.i.readUInt16BE(0), reg + 1);
 	this.nextInstruction();
 };

@@ -4,34 +4,149 @@
 
 function Chip8(rom, canvas) {
 	this.cpu = new CPU(this);
-	this.memory = new Memory(canvas);
-	this.video = new Video();
+	this.memory = new Memory(rom);
+	this.video = new Video(canvas);
 	this.input = new Input();
-
-	//Copy font data to memory
-	(new Buffer([
-		0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
-		0x20, 0x60, 0x20, 0x20, 0x70, // 1
-		0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
-		0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
-		0x90, 0x90, 0xF0, 0x10, 0x10, // 4
-		0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
-		0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
-		0xF0, 0x10, 0x20, 0x40, 0x40, // 7
-		0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
-		0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
-		0xF0, 0x90, 0xF0, 0x90, 0x90, // A
-		0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
-		0xF0, 0x80, 0x80, 0x80, 0xF0, // C
-		0xE0, 0x90, 0x90, 0x90, 0xE0, // D
-		0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
-		0xF0, 0x80, 0xF0, 0x80, 0x80  // F
-	])).copy(this.memory.buffer);
-
-	//Copy rom data to memory
-	rom.copy(this.memory.buffer, 0x200)
 }
 
 Chip8.prototype.cycle = function emulateCycle() {
-	var opcode = this.memory.buffer.readUInt16BE(this.cpu.pc);
+	if (!this.cpu.halt) {
+		var opCode = this.memory.buffer.readUInt16BE(this.cpu.pc);
+		this.opCode[(opCode & 0xF000) >> 12](opCode);
+	}
 };
+
+/**
+ * OpCodes Function Array
+ *
+ * @type {[]}
+ */
+Chip8.prototype.opCode = [
+	function opCode0(opCode) {
+		switch (opCode) {
+			case 0x00E0:
+				this.cpu.cls();
+				break;
+			case 0x00EE:
+				this.cpu.return();
+				break;
+			default:
+			//TODO: 0nnn, function, thought it' considered deprecated
+		}
+	},
+	function opCode1(opCode) {
+		this.cpu.jump(opCode & 0x0FFF);
+	},
+	function opCode2(opCode) {
+		this.cpu.call(opCode & 0x0FFF);
+	},
+	function opCode3(opCode) {
+		this.cpu.se((opCode & 0x0F00) >> 8, opCode & 0x00FF);
+	},
+	function opCode4(opCode) {
+		this.cpu.sne((opCode & 0x0F00) >> 8, opCode & 0x00FF);
+	},
+	function opCode5(opCode) {
+		this.cpu.ser((opCode & 0x0F00) >> 8, (opCode & 0x00F0) >> 4);
+	},
+	function opCode6(opCode) {
+		this.cpu.move((opCode & 0x0F00) >> 8, opCode & 0x00FF);
+	},
+	function opCode7(opCode) {
+		this.cpu.add((opCode & 0x0F00) >> 8, opCode & 0x00FF);
+	},
+	function opCode8(opCode) {
+		var x = (opCode & 0x0F00) >> 8;
+		var y = (opCode & 0x00F0) >> 4;
+
+		switch (opCode & 0x000F) {
+			case 0x0:
+				this.cpu.mover(x, y);
+				break;
+			case 0x1:
+				this.cpu.or(x, y);
+				break;
+			case 0x2:
+				this.cpu.and(x, y);
+				break;
+			case 0x3:
+				this.cpu.xor(x, y);
+				break;
+			case 0x4:
+				this.cpu.addr(x, y);
+				break;
+			case 0x5:
+				this.cpu.subr(x, y);
+				break;
+			case 0x6:
+				this.cpu.shr(x);
+				break;
+			case 0x7:
+				this.cpu.subrn(x, y);
+				break;
+			case 0xE:
+				this.cpu.shl(x);
+				break;
+		}
+	},
+	function opCode9(opCode) {
+		this.cpu.sner((opCode & 0x0F00) >> 8, (opCode & 0x00F0) >> 4);
+	},
+	function opCodeA(opCode) {
+		this.cpu.movei(opCode & 0x0FFF);
+	},
+	function opCodeB(opCode) {
+		this.cpu.jumpr(opCode & 0x0FFF);
+	},
+	function opCodeC(opCode) {
+		this.cpu.rnd((opCode & 0x0F00) >> 8, opCode & 0x00FF);
+	},
+	function opCodeD(opCode) {
+		this.cpu.dwr((opCode & 0x0F00) >> 8, (opCode & 0x00F0) >> 4, opCode & 0x000F);
+	},
+	function opCodeE(opCode) {
+		var x = (opCode & 0x0F00) >> 8;
+
+		switch (opCode & 0x00FF) {
+			case 0x9E:
+				this.cpu.skp(x);
+				break;
+			case 0xA1:
+				this.cpu.sknp(x);
+				break;
+		}
+	},
+	function opCodeF(opCode) {
+		var x = (opCode & 0x0F00) >> 8;
+
+		switch (opCode & 0x00FF) {
+			case 0x07:
+				this.cpu.movedtr(x);
+				break;
+			case 0x0A:
+				this.cpu.wkp(x);
+				break;
+			case 0x15:
+				this.cpu.moverdt(x);
+				break;
+			case 0x18:
+				this.cpu.moverst(x);
+				break;
+			case 0x1E:
+				this.cpu.addi(x);
+				break;
+			case 0x29:
+				this.cpu.moveft(x);
+				break;
+			case 0x33:
+				this.cpu.movebcd(x);
+				break;
+			case 0x55:
+				this.cpu.store(x);
+				break;
+			case 0x65:
+				this.cpu.read(x);
+				break;
+		}
+	}
+];
