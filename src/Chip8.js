@@ -2,9 +2,9 @@
  * Created by Vítor Augusto da Silva Vasconcellos on 6/11/15.
  */
 
-function Chip8(rom) {
+function Chip8(rom, canvas) {
 	this.cpu = new CPU(this);
-	this.memory = new Memory();
+	this.memory = new Memory(canvas);
 	this.video = new Video();
 	this.input = new Input();
 
@@ -34,5 +34,4 @@ function Chip8(rom) {
 
 Chip8.prototype.cycle = function emulateCycle() {
 	var opcode = this.memory.buffer.readUInt16BE(this.cpu.pc);
-
 };

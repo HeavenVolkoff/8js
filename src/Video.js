@@ -2,11 +2,13 @@
  * Created by Vítor Augusto da Silva Vasconcellos on 6/11/15.
  */
 
-function Video() {
+function Video(canvas) {
 	this.width = 64;
 	this.height = 32;
 
-	this.pixel = new Array(width * height);
+	this.ctx = canvas.getContext('2d');
+
+	this.pixel = new Array(this.width * this.height);
 }
 
 Video.prototype.drawSprite = function drawSprite(x, y, sprite) {
@@ -19,9 +21,11 @@ Video.prototype.drawSprite = function drawSprite(x, y, sprite) {
 					carry = 1;
 				}
 
-				this.pixel[((x + xLine) % this.width) + (((y + yLine) % this.height) * this.width)] ^= 1;
+				var color = this.pixel[((x + xLine) % this.width) + (((y + yLine) % this.height) * this.width)] ^ 1;
+				this.pixel[((x + xLine) % this.width) + (((y + yLine) % this.height) * this.width)] = color;
 
-				//TODO: implement asynchronous canvas drawing
+				this.ctx.fillStyle = color ? 'black' : 'white';
+				this.ctx.fillRect(x + xLine, y + yLine, 1, 1);
 			}
 		}
 	}
