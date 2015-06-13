@@ -7,7 +7,21 @@ function Chip8(rom, canvas) {
 	this.memory = new Memory(rom);
 	this.video = new Video(canvas);
 	this.input = new Input();
+	this.audio = new Audio();
 }
+
+Chip8.prototype.init = function initialize() {
+	var self = this;
+	var clock = new Worker('clock.js');
+
+	clock.onmessage = function () {
+		self.cycle();
+	}
+};
+
+Chip8.prototype.restart = function restart(rom) {
+	//TODO: Clear Everything and reset rom
+};
 
 Chip8.prototype.cycle = function emulateCycle() {
 	if (!this.cpu.halt) {

@@ -3,7 +3,7 @@
  */
 
 function Input() {
- EventEmitter2.call(this);
+	EventEmitter2.call(this);
 	this.keyboard = new Array(16);
 }
 

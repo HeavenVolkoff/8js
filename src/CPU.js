@@ -85,7 +85,9 @@ function CPU(motherboard) {
 	 */
 	this.timer = {
 		delay: 0,
-		sound: 0
+		delayId: 0,
+		sound: 0,
+		soundId: 0
 	};
 
 	/**
@@ -101,10 +103,18 @@ function CPU(motherboard) {
 	this.motherboard = motherboard;
 }
 
+/**
+ * Function to move the program counter to the next operation
+ */
 CPU.prototype.nextInstruction = function incrementsPC() {
 	this.pc.writeUInt16BE(this.pc.readUInt16BE(0) + 2);
 };
 
+/**
+ * 00E0 - CLS
+ *
+ * Clear the display.
+ */
 CPU.prototype.cls = function clearScreen() {
 	this.motherboard.video.clear();
 };
@@ -286,6 +296,17 @@ CPU.prototype.movedtr = function moveDelayTimeToReg(reg) {
  */
 CPU.prototype.moverdt = function moveRegToDelayTime(reg) {
 	this.timer.delay = this.reg[reg];
+
+	if (this.time.delay != 0) {
+		var self = this;
+
+		this.timer.delayId = setInterval(function () {
+			if (--self.timer.delay == 0) {
+				clearInterval(self.timer.delayId);
+			}
+		}, 1000 / 60);
+	}
+
 	this.nextInstruction();
 };
 
@@ -299,6 +320,20 @@ CPU.prototype.moverdt = function moveRegToDelayTime(reg) {
  */
 CPU.prototype.moverst = function moveRegToSoundTime(reg) {
 	this.timer.sound = this.reg[reg];
+
+	if (this.time.sound != 0) {
+		var self = this;
+
+		this.motherboard.audio.play();
+
+		this.timer.soundId = setInterval(function () {
+			if (--self.timer.sound == 0) {
+				self.motherboard.audio.stop();
+				clearInterval(self.timer.soundId);
+			}
+		}, 1000 / 60);
+	}
+
 	this.nextInstruction();
 };
 
@@ -556,8 +591,8 @@ CPU.prototype.wkp = function waitKeyPress(reg) {
 
 	this.motherboard.input.once("keypress", function (key) {
 			self.reg.writeUInt8(key, reg);
-			self.halt = false;
 			self.nextInstruction();
+		self.halt = false;
 	})
 };
 

@@ -37,6 +37,12 @@ function Memory(rom) {
 		0xF0, 0x80, 0xF0, 0x80, 0x80  // F
 	])).copy(this.buffer);
 
+	if (typeof rom != 'undefined') {
+		this.load(rom);
+	}
+}
+
+Memory.prototype.load = function load(rom) {
 	//Copy rom data to memory
 	rom.copy(this.buffer, 0x200);
-}
+};

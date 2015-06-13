@@ -16,7 +16,7 @@ Video.prototype.drawSprite = function drawSprite(x, y, sprite) {
 
 	for (var yLine = 0; yLine < sprite.height; yLine++) {
 		for (var xLine = 0; xLine < sprite.width; xLine++) {
-			if (sprite.data.readUint8(yLine) != 0) {
+			if (sprite.data.readUInt8(yLine) != 0) {
 				if (this.pixel[((x + xLine) % this.width) + (((y + yLine) % this.height) * this.width)] === 1) {
 					carry = 1;
 				}
@@ -25,10 +25,14 @@ Video.prototype.drawSprite = function drawSprite(x, y, sprite) {
 				this.pixel[((x + xLine) % this.width) + (((y + yLine) % this.height) * this.width)] = color;
 
 				this.ctx.fillStyle = color ? 'black' : 'white';
-				this.ctx.fillRect(x + xLine, y + yLine, 1, 1);
+				this.ctx.fillRect((x + xLine) % this.width, (y + yLine) % this.height, 1, 1);
 			}
 		}
 	}
 
 	return carry;
+};
+
+Video.prototype.clear = function clearScreen() {
+	this.ctx.clearRect(0, 0, this.width, this.height);
 };
