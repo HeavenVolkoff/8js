@@ -2,12 +2,17 @@
  * Created by Vítor Augusto da Silva Vasconcellos on 6/11/15.
  */
 
+var EventEmitter = require('events').EventEmitter;
+var util = require('util');
+
 function Input() {
-	EventEmitter2.call(this);
+	EventEmitter.call(this);
 	this.keyboard = new Array(16);
 }
 
-heir.inherit(Input, EventEmitter2);
+util.inherits(Input, EventEmitter);
+
+module.exports.Input = Input;
 
 Input.prototype.isKeyPressed = function isKeyPressed(key) {
 	return !!this.keyboard[key];

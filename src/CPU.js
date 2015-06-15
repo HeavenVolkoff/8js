@@ -24,14 +24,16 @@ function Stack() {
 	var pointer = 0;
 
 	this.pushFrom = function pushFrom(buff) {
+		console.log('Push to Stack');
 		buff.copy(buffer, pointer);
 		pointer += 2;
 	};
 
 	this.popTo = function popTo(buff) {
-		buffer.copy(buff, 0, pointer, buff.length);
+		console.log('Pop from Stack');
 		pointer -= 2;
-	}
+		buffer.copy(buff, 0, pointer, buff.length);
+	};
 }
 
 /**
@@ -85,9 +87,7 @@ function CPU(motherboard) {
 	 */
 	this.timer = {
 		delay: 0,
-		delayId: 0,
-		sound: 0,
-		soundId: 0
+		sound: 0
 	};
 
 	/**
@@ -103,11 +103,25 @@ function CPU(motherboard) {
 	this.motherboard = motherboard;
 }
 
+module.exports.CPU = CPU;
+
 /**
  * Function to move the program counter to the next operation
  */
 CPU.prototype.nextInstruction = function incrementsPC() {
 	this.pc.writeUInt16BE(this.pc.readUInt16BE(0) + 2);
+};
+
+CPU.prototype.updateTimers = function updateTimers() {
+	if (this.timer.sound > 0) {
+		this.timer.sound--;
+	} else if (this.motherboard.audio.isPlaying) {
+		this.motherboard.audio.stop();
+	}
+
+	if (this.timer.delay > 0) {
+		this.timer.delay--;
+	}
 };
 
 /**
@@ -128,6 +142,7 @@ CPU.prototype.cls = function clearScreen() {
  */
 CPU.prototype.return = function returnFromSubroutine() {
 	this.stack.popTo(this.pc);
+	this.nextInstruction();
 };
 
 /**
@@ -297,16 +312,6 @@ CPU.prototype.movedtr = function moveDelayTimeToReg(reg) {
 CPU.prototype.moverdt = function moveRegToDelayTime(reg) {
 	this.timer.delay = this.reg[reg];
 
-	if (this.time.delay != 0) {
-		var self = this;
-
-		this.timer.delayId = setInterval(function () {
-			if (--self.timer.delay == 0) {
-				clearInterval(self.timer.delayId);
-			}
-		}, 1000 / 60);
-	}
-
 	this.nextInstruction();
 };
 
@@ -320,19 +325,7 @@ CPU.prototype.moverdt = function moveRegToDelayTime(reg) {
  */
 CPU.prototype.moverst = function moveRegToSoundTime(reg) {
 	this.timer.sound = this.reg[reg];
-
-	if (this.time.sound != 0) {
-		var self = this;
-
-		this.motherboard.audio.play();
-
-		this.timer.soundId = setInterval(function () {
-			if (--self.timer.sound == 0) {
-				self.motherboard.audio.stop();
-				clearInterval(self.timer.soundId);
-			}
-		}, 1000 / 60);
-	}
+	this.motherboard.audio.play();
 
 	this.nextInstruction();
 };
@@ -347,7 +340,7 @@ CPU.prototype.moverst = function moveRegToSoundTime(reg) {
  * @param value
  */
 CPU.prototype.add = function addValue(reg, value) {
-	this.reg.writeUInt8(this.reg[reg] + value, reg);
+	this.reg.writeUInt8(this.reg[reg] + value, reg, true);
 	this.nextInstruction();
 };
 
@@ -370,7 +363,7 @@ CPU.prototype.addr = function addRegs(reg1, reg2) {
 		this.reg.writeUInt8(0, 0xF);
 	}
 
-	this.reg.writeUInt8(result, reg1);
+	this.reg.writeUInt8(result, reg1, true);
 
 	this.nextInstruction();
 };
@@ -384,7 +377,15 @@ CPU.prototype.addr = function addRegs(reg1, reg2) {
  * @param reg
  */
 CPU.prototype.addi = function addRegToI(reg) {
-	this.i.writeUInt16BE(this.i.readUInt16BE(0) + this.reg.readUInt8(reg));
+	var result = this.i.readUInt16BE(0) + this.reg.readUInt8(reg);
+
+	if (result > 0xFFF) {
+		this.reg.writeUInt8(1, 0xF);
+	} else {
+		this.reg.writeUInt8(0, 0xF);
+	}
+
+	this.i.writeUInt16BE(result, 0, true);
 	this.nextInstruction();
 };
 
@@ -452,7 +453,7 @@ CPU.prototype.subr = function subRegs(reg1, reg2) {
 		this.reg.writeUInt8(0, 0xF);
 	}
 
-	this.reg.writeUInt8(this.reg[reg1] - this.reg[reg2], reg1);
+	this.reg.writeUInt8(this.reg[reg1] - this.reg[reg2], reg1, true);
 	this.nextInstruction();
 };
 
@@ -472,7 +473,7 @@ CPU.prototype.subrn = function subRegsN(reg1, reg2) {
 		this.reg.writeUInt8(0, 0xF);
 	}
 
-	this.reg.writeUInt8(this.reg[reg2] - this.reg[reg1], reg1);
+	this.reg.writeUInt8(this.reg[reg2] - this.reg[reg1], reg1, true);
 	this.nextInstruction();
 };
 
@@ -533,15 +534,17 @@ CPU.prototype.rnd = function generateRandom(reg, byte) {
  * @param nibble
  */
 CPU.prototype.dwr = function display(regX, regY, nibble) {
+	var i = this.i.readUInt16BE(0);
+
 	this.reg.writeUInt8(
 		this.motherboard.video.drawSprite(regX, regY,
 			{
-				data: this.motherboard.memory.buffer.slice(this.i.readUInt16BE(0), nibble),
-				widht: 8,
+				data: this.motherboard.memory.buffer.slice(i, i + nibble),
+				width: 8,
 				height: nibble
 			}
-		)
-		, 0xF);
+		), 0xF);
+
 	this.nextInstruction();
 };
 
@@ -593,7 +596,7 @@ CPU.prototype.wkp = function waitKeyPress(reg) {
 			self.reg.writeUInt8(key, reg);
 			self.nextInstruction();
 		self.halt = false;
-	})
+	});
 };
 
 /**
@@ -604,7 +607,7 @@ CPU.prototype.wkp = function waitKeyPress(reg) {
  * @param reg
  */
 CPU.prototype.moveft = function moveFontPosToReg(reg) {
-	this.i.writeUInt16BE(this.reg.readUInt8(0) * 5, reg);
+	this.i.writeUInt16BE(this.reg.readUInt8(reg) * 5);
 	this.nextInstruction();
 };
 

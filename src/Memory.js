@@ -13,6 +13,7 @@
  * @returns {Memory}
  * @constructor
  */
+
 function Memory(rom) {
 	this.buffer = new Buffer(4096);
 	this.buffer.fill(0x0);
@@ -37,12 +38,14 @@ function Memory(rom) {
 		0xF0, 0x80, 0xF0, 0x80, 0x80  // F
 	])).copy(this.buffer);
 
-	if (typeof rom != 'undefined') {
+	if (typeof rom !== 'undefined') {
 		this.load(rom);
 	}
 }
 
+module.exports.Memory = Memory;
+
 Memory.prototype.load = function load(rom) {
 	//Copy rom data to memory
-	rom.copy(this.buffer, 0x200);
+	(new Buffer(rom, 'binary')).copy(this.buffer, 0x200);
 };

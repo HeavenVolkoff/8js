@@ -11,6 +11,7 @@ html, body, .container, .full {
 #chip8 {
     height: 32px;
     width: 64px;
+    zoom: 1000%
 }
 
 .center {
