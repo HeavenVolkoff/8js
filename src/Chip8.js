@@ -184,7 +184,8 @@ Chip8.prototype.restart = function restart(rom) {
 Chip8.prototype.cycle = function emulateCycle() {
 	if (!this.cpu.halt) {
 		var opCode = this.memory.buffer.readUInt16BE(this.cpu.pc.readUInt16BE(0));
-		console.log('opCode: ' + opCode);
+		console.log('opCode: 0x' + opCode.toString(16).toUpperCase());
+		console.log(this.opCode[(opCode & 0xF000) >> 12]);
 		this.opCode[(opCode & 0xF000) >> 12](opCode);
 		this.cpu.updateTimers();
 	}

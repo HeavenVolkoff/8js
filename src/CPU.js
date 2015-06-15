@@ -32,7 +32,7 @@ function Stack() {
 	this.popTo = function popTo(buff) {
 		console.log('Pop from Stack');
 		pointer -= 2;
-		buffer.copy(buff, 0, pointer, buff.length);
+		buffer.copy(buff, 0, pointer, pointer + buff.length);
 	};
 }
 
@@ -131,6 +131,7 @@ CPU.prototype.updateTimers = function updateTimers() {
  */
 CPU.prototype.cls = function clearScreen() {
 	this.motherboard.video.clear();
+	this.nextInstruction();
 };
 
 /**
@@ -537,7 +538,7 @@ CPU.prototype.dwr = function display(regX, regY, nibble) {
 	var i = this.i.readUInt16BE(0);
 
 	this.reg.writeUInt8(
-		this.motherboard.video.drawSprite(regX, regY,
+		this.motherboard.video.drawSprite(this.reg.readUInt8(regX), this.reg.readUInt8(regY),
 			{
 				data: this.motherboard.memory.buffer.slice(i, i + nibble),
 				width: 8,
@@ -593,8 +594,8 @@ CPU.prototype.wkp = function waitKeyPress(reg) {
 	this.halt = true;
 
 	this.motherboard.input.once("keypress", function (key) {
-			self.reg.writeUInt8(key, reg);
-			self.nextInstruction();
+		self.reg.writeUInt8(key, reg);
+		self.nextInstruction();
 		self.halt = false;
 	});
 };
@@ -641,6 +642,7 @@ CPU.prototype.movebcd = function moveBCDOfRegToMem(reg) {
  */
 CPU.prototype.store = function storeRegsFromMemory(reg) {
 	this.reg.copy(this.motherboard.memory.buffer, this.i.readUInt16BE(0), 0, reg + 1);
+	this.i.writeUInt16BE(this.i.readUInt16BE(0) + reg + 1);
 	this.nextInstruction();
 };
 
@@ -652,6 +654,7 @@ CPU.prototype.store = function storeRegsFromMemory(reg) {
  * @param reg
  */
 CPU.prototype.read = function readRegsFromMemory(reg) {
-	this.motherboard.memory.buffer.copy(this.reg, 0, this.i.readUInt16BE(0), reg + 1);
+	this.motherboard.memory.buffer.copy(this.reg, 0, this.i.readUInt16BE(0), this.i.readUInt16BE(0) + reg + 1);
+	this.i.writeUInt16BE(this.i.readUInt16BE(0) + reg + 1);
 	this.nextInstruction();
 };
