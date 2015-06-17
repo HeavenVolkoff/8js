@@ -1,6 +1,8 @@
 /**
  * Created by Vítor Augusto da Silva Vasconcellos on 6/11/15.
  */
+var EventEmitter = require('events').EventEmitter;
+var util = require('util');
 
 var Audio = require('./Audio.js').Audio;
 var Memory = require('./Memory.js').Memory;
@@ -9,20 +11,41 @@ var Input = require('./Input.js').Input;
 var CPU = require('./CPU.js').CPU;
 
 /**
- * Chip 8 Control Class
+ * Chip8 Control Class
  *
  * @param rom
  * @param canvas
+ * @param audio
  * @constructor
  */
-function Chip8(rom, canvas) {
+function Chip8(rom, canvas, audio) {
+	EventEmitter.call(this);
+
 	this.cpu = new CPU(this);
 	this.memory = new Memory(rom);
-	this.video = new Video(canvas);
+	this.video = new Video(canvas.height, canvas.width);
 	this.input = new Input();
-	this.audio = new Audio();
+	this.audio = new Audio(audio.duration);
+
+	this.interval = {
+		timer: 0,
+		cycle: 0
+	};
 
 	var self = this;
+
+	this.audio.promise.play = function () {
+		self.emit('playAudio');
+	};
+	this.audio.promise.stop = function () {
+		self.emit('stopAudio');
+	};
+	this.video.promise.clear = function () {
+		self.emit('clearScreen', {clearTimes: this.clearTimes});
+	};
+	this.video.promise.draw = function () {
+		self.emit('drawSprite', {x: this.x, y: this.y, scale: this.scale, color: this.color});
+	};
 
 	/**
 	 * OpCodes Function Array
@@ -166,27 +189,42 @@ function Chip8(rom, canvas) {
 	];
 }
 
-window.Chip8 = Chip8;
+util.inherits(Chip8, EventEmitter);
+
+module.exports = Chip8;
 
 Chip8.prototype.init = function initialize() {
 	var self = this;
-	var clock = new Worker('clock.js');
 
-	clock.onmessage = function () {
-		self.cycle();
-	};
+	this.interval.timer = setInterval(function () {
+		self.cpu.updateTimers();
+	}, this.cpu.timer.clock);
+
+	this.interval.cycle = setInterval(function () {
+		for (var counter = 0; counter < self.cpu.clock; counter++) {
+			self.cycle();
+		}
+	}, 1);
 };
 
 Chip8.prototype.restart = function restart(rom) {
-	//TODO: Clear Everything and reset rom
+	clearInterval(this.interval.cycle);
+	clearInterval(this.interval.timer);
+
+	this.audio.canStop = true;
+	this.audio.stop();
+	this.video.clear();
+	this.memory.clear();
+	this.input.clear();
+	this.cpu.clear();
+
+	this.memory.load(rom);
+	this.init();
 };
 
 Chip8.prototype.cycle = function emulateCycle() {
 	if (!this.cpu.halt) {
 		var opCode = this.memory.buffer.readUInt16BE(this.cpu.pc.readUInt16BE(0));
-		console.log('opCode: 0x' + opCode.toString(16).toUpperCase());
-		console.log(this.opCode[(opCode & 0xF000) >> 12]);
 		this.opCode[(opCode & 0xF000) >> 12](opCode);
-		this.cpu.updateTimers();
 	}
 };

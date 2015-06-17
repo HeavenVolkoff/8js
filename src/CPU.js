@@ -20,20 +20,23 @@ function getRandomInt(min, max) {
  */
 function Stack() {
 	var buffer = new Buffer(16 * 2);
-	buffer.fill(0x0);
+	buffer.fill(0);
 	var pointer = 0;
 
 	this.pushFrom = function pushFrom(buff) {
-		console.log('Push to Stack');
 		buff.copy(buffer, pointer);
 		pointer += 2;
 	};
 
 	this.popTo = function popTo(buff) {
-		console.log('Pop from Stack');
 		pointer -= 2;
 		buffer.copy(buff, 0, pointer, pointer + buff.length);
 	};
+
+	this.clear = function clear() {
+		buffer.fill(0);
+		pointer = 0;
+	}
 }
 
 /**
@@ -80,14 +83,21 @@ function CPU(motherboard) {
 	this.stack = new Stack();
 
 	/**
+	 * This CPU clock in Khz
+	 * @type {number}
+	 */
+	this.clock = 8;
+
+	/**
 	 * CPU Timers
-	 * Used to count down at 60hz
+	 * Count down at 60hz
 	 *
-	 * @type {{delay: number, sound: number}}
+	 * @type {{delay: number, sound: number, clock: number}}
 	 */
 	this.timer = {
 		delay: 0,
-		sound: 0
+		sound: 0,
+		clock: 1000 / 60
 	};
 
 	/**
@@ -112,6 +122,9 @@ CPU.prototype.nextInstruction = function incrementsPC() {
 	this.pc.writeUInt16BE(this.pc.readUInt16BE(0) + 2);
 };
 
+/**
+ * Update Internal Timers
+ */
 CPU.prototype.updateTimers = function updateTimers() {
 	if (this.timer.sound > 0) {
 		this.timer.sound--;
@@ -122,6 +135,16 @@ CPU.prototype.updateTimers = function updateTimers() {
 	if (this.timer.delay > 0) {
 		this.timer.delay--;
 	}
+};
+
+CPU.prototype.clear = function clear() {
+	this.i.fill(0x0);
+	this.reg.fill(0x0);
+	this.pc.writeUInt16BE(0x200);
+	this.stack.clear();
+	this.timer.delay = 0;
+	this.timer.sound = 0;
+	this.halt = false;
 };
 
 /**
@@ -312,7 +335,6 @@ CPU.prototype.movedtr = function moveDelayTimeToReg(reg) {
  */
 CPU.prototype.moverdt = function moveRegToDelayTime(reg) {
 	this.timer.delay = this.reg[reg];
-
 	this.nextInstruction();
 };
 
@@ -327,7 +349,6 @@ CPU.prototype.moverdt = function moveRegToDelayTime(reg) {
 CPU.prototype.moverst = function moveRegToSoundTime(reg) {
 	this.timer.sound = this.reg[reg];
 	this.motherboard.audio.play();
-
 	this.nextInstruction();
 };
 
@@ -501,8 +522,8 @@ CPU.prototype.shr = function shiftRigth(reg) {
  * @param reg
  */
 CPU.prototype.shl = function shiftLeft(reg) {
-	this.reg.writeUInt8(this.reg[reg] >> 0xF, 0xF);
-	this.reg.writeUInt8(this.reg[reg] << 1, reg);
+	this.reg.writeUInt8(this.reg[reg] >> 7, 0xF);
+	this.reg.writeUInt8(this.reg[reg] << 1, reg, true);
 	this.nextInstruction();
 };
 
