@@ -1,0 +1,18 @@
+html, body, .container, .full {
+    height: 100%;
+    width: 100%;
+}
+
+#wrapper {
+    height: 100%;
+    width: 100%;
+}
+
+#chip8 {
+    height: 320px;
+    width: 640px;
+}
+
+.center {
+    margin: 0 auto;
+}
