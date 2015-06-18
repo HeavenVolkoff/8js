@@ -50,7 +50,7 @@ Memory.prototype.load = function load(rom) {
 	//Copy rom data to memory
 	if(typeof rom === 'string'){
 		rom = new Buffer(rom, 'binary');
-	}else{
+	}else if(typeof rom !== 'undefined' && rom !== null){
 		throw new Error('Unknown Rom Type');
 	}
 
