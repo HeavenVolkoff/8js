@@ -4,11 +4,11 @@
 var EventEmitter = require('events').EventEmitter;
 var util = require('util');
 
-var Audio = require('./Audio.js').Audio;
-var Memory = require('./Memory.js').Memory;
-var Video = require('./Video.js').Video;
-var Input = require('./Input.js').Input;
-var CPU = require('./CPU.js').CPU;
+var Audio = require('./Audio.js');
+var Memory = require('./Memory.js');
+var Video = require('./Video.js');
+var Input = require('./Input.js');
+var CPU = require('./CPU.js');
 
 /**
  * Chip8 Control Class
@@ -195,14 +195,22 @@ module.exports = Chip8;
 
 Chip8.prototype.init = function initialize() {
 	var self = this;
-
-	this.interval.timer = setInterval(function () {
-		self.cpu.updateTimers();
-	}, this.cpu.timer.clock);
+	var now;
+	var old = performance.now();
+	var timerOld = old;
 
 	this.interval.cycle = setInterval(function () {
-		for (var counter = 0; counter < self.cpu.clock; counter++) {
-			self.cycle();
+		for (var counter = 0; counter < self.cpu.clock;) {
+			now = performance.now();
+			if(now - old >= (1 / self.cpu.clock)){
+				self.cycle();
+				counter++;
+				old = now;
+			}
+			if(now - timerOld >= self.cpu.timer.clock){
+				self.cpu.updateTimers();
+				timerOld = now;
+			}
 		}
 	}, 1);
 };

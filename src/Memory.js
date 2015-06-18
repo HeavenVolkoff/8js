@@ -17,13 +17,14 @@
 function Memory(rom) {
 	this.buffer = new Buffer(4096);
 	this.buffer.fill(0x0);
+	this.rom = null;
 
 	if (typeof rom !== 'undefined') {
 		this.load(rom);
 	}
 }
 
-module.exports.Memory = Memory;
+module.exports = Memory;
 
 Memory.prototype.load = function load(rom) {
 	//Copy font data to memory
@@ -47,7 +48,15 @@ Memory.prototype.load = function load(rom) {
 	])).copy(this.buffer);
 
 	//Copy rom data to memory
-	(new Buffer(rom, 'binary')).copy(this.buffer, 0x200);
+	if(typeof rom === 'string'){
+		rom = new Buffer(rom, 'binary');
+	}else{
+		throw new Error('Unknown Rom Type');
+	}
+
+	if(Buffer.isBuffer(rom)){
+		rom.copy(this.buffer, 0x200);
+	}
 };
 
 Memory.prototype.clear = function clear(){

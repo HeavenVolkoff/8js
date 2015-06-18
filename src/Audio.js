@@ -14,7 +14,7 @@ function Audio(duration) {
 	this.canStop = false;
 }
 
-module.exports.Audio = Audio;
+module.exports = Audio;
 
 Audio.prototype.play = function play() {
 	var self = this;

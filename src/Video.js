@@ -22,7 +22,7 @@ function Video(canvasHeight, canvasWidth) {
 	}
 }
 
-module.exports.Video = Video;
+module.exports = Video;
 
 Video.prototype.drawSprite = function drawSprite(x, y, sprite) {
 	var carry = 0;

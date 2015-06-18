@@ -36,7 +36,7 @@ function Stack() {
 	this.clear = function clear() {
 		buffer.fill(0);
 		pointer = 0;
-	}
+	};
 }
 
 /**
@@ -86,7 +86,7 @@ function CPU(motherboard) {
 	 * This CPU clock in Khz
 	 * @type {number}
 	 */
-	this.clock = 8;
+	this.clock = 4;
 
 	/**
 	 * CPU Timers
@@ -113,7 +113,7 @@ function CPU(motherboard) {
 	this.motherboard = motherboard;
 }
 
-module.exports.CPU = CPU;
+module.exports = CPU;
 
 /**
  * Function to move the program counter to the next operation

@@ -38,7 +38,7 @@ function Input() {
 
 util.inherits(Input, EventEmitter);
 
-module.exports.Input = Input;
+module.exports = Input;
 
 Input.prototype.isKeyPressed = function isKeyPressed(key) {
 	return !!this.keyboard[key];
