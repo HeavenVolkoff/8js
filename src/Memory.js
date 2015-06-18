@@ -49,13 +49,13 @@ Memory.prototype.load = function load(rom) {
 
 	//Copy rom data to memory
 	if(typeof rom === 'string'){
-		rom = new Buffer(rom, 'binary');
+		this.rom = new Buffer(rom, 'binary');
 	}else if(typeof rom !== 'undefined' && rom !== null){
 		throw new Error('Unknown Rom Type');
 	}
 
-	if(Buffer.isBuffer(rom)){
-		rom.copy(this.buffer, 0x200);
+	if(Buffer.isBuffer(this.rom)){
+		this.rom.copy(this.buffer, 0x200);
 	}
 };
 
