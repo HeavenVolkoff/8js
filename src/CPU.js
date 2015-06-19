@@ -115,6 +115,10 @@ function CPU(motherboard) {
 
 module.exports = CPU;
 
+CPU.prototype.changeClock = function changeClock(clock){
+	this.clock = clock|0;
+};
+
 /**
  * Function to move the program counter to the next operation
  */
@@ -137,6 +141,9 @@ CPU.prototype.updateTimers = function updateTimers() {
 	}
 };
 
+/**
+ * Clear CPU Registers and Stack to reset
+ */
 CPU.prototype.clear = function clear() {
 	this.i.fill(0x0);
 	this.reg.fill(0x0);
