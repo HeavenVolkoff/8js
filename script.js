@@ -14,6 +14,13 @@ $(document).ready(function() {
 
 function emulator($, Chip8) {
 	'use strict';
+	var icons = {
+		setting: 'mdi-action-settings',
+		play: 'mdi-av-play-arrow',
+		pause: 'mdi-av-pause'
+	};
+	var configButton = $('#configButton');
+	var configButtonIcon = configButton.find('i');
 	var speedSelect = $('#speedSelect');
 	var romInput = $('#romInput');
 	var fileReader = new FileReader();
@@ -23,13 +30,25 @@ function emulator($, Chip8) {
 		audio.loop = true;
 	var chip8 = null;
 
-	$('#changeRomButton').click(function () {
-		romInput.click();
+	configButton.click(function(){
+		if(chip8){
+			if(configButtonIcon.hasClass(icons.play)){
+				chip8.init();
+				configButtonIcon.removeClass(icons.play).addClass(icons.pause);
+			}else if(configButtonIcon.hasClass(icons.pause)){
+				chip8.pause();
+				configButtonIcon.removeClass(icons.pause).addClass(icons.play);
+			}
+		}
 	});
 
 	$('#resetButton').click(function(){
 		if(chip8){
 			chip8.restart();
+
+			if(configButtonIcon.hasClass(icons.play)){
+				configButtonIcon.removeClass(icons.play).addClass(icons.pause);
+			}
 		}
 	});
 
@@ -37,6 +56,10 @@ function emulator($, Chip8) {
 		if(chip8){
 			chip8.cpu.changeClock(speedSelect.val());
 		}
+	});
+
+	$('#changeRomButton').click(function () {
+		romInput.click();
 	});
 
 	romInput.change(function () {
@@ -75,8 +98,14 @@ function emulator($, Chip8) {
 				});
 
 				chip8.init();
+
+				configButtonIcon.removeClass(icons.setting).addClass(icons.pause);
 			} else {
 				chip8.restart(fileReader.result);
+
+				if(configButtonIcon.hasClass(icons.play)){
+					configButtonIcon.removeClass(icons.play).addClass(icons.pause);
+				}
 			}
 		};
 
