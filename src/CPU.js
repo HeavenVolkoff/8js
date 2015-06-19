@@ -115,6 +115,11 @@ function CPU(motherboard) {
 
 module.exports = CPU;
 
+/**
+ * Change CPU clock
+ *
+ * @param clock
+ */
 CPU.prototype.changeClock = function changeClock(clock){
 	this.clock = clock|0;
 };
@@ -130,14 +135,16 @@ CPU.prototype.nextInstruction = function incrementsPC() {
  * Update Internal Timers
  */
 CPU.prototype.updateTimers = function updateTimers() {
-	if (this.timer.sound > 0) {
-		this.timer.sound--;
-	} else if (this.motherboard.audio.isPlaying) {
-		this.motherboard.audio.stop();
-	}
+	if(!this.halt){
+		if (this.timer.sound > 0) {
+			this.timer.sound--;
+		} else if (this.motherboard.audio.isPlaying) {
+			this.motherboard.audio.stop();
+		}
 
-	if (this.timer.delay > 0) {
-		this.timer.delay--;
+		if (this.timer.delay > 0) {
+			this.timer.delay--;
+		}
 	}
 };
 

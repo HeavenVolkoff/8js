@@ -27,10 +27,7 @@ function Chip8(rom, canvas, audio) {
 	this.input = new Input();
 	this.audio = new Audio(audio.duration);
 
-	this.interval = {
-		timer: 0,
-		cycle: 0
-	};
+	this.interval = null;
 
 	var self = this;
 
@@ -199,7 +196,7 @@ Chip8.prototype.init = function initialize() {
 	var old = performance.now();
 	var timerOld = old;
 
-	this.interval.cycle = setInterval(function () {
+	this.interval = setInterval(function () {
 		for (var counter = 0; counter < self.cpu.clock;) {
 			now = performance.now();
 			if(now - old >= (1 / self.cpu.clock)){
@@ -215,9 +212,12 @@ Chip8.prototype.init = function initialize() {
 	}, 1);
 };
 
+Chip8.prototype.pause = function pause(){
+	clearInterval(this.interval);
+};
+
 Chip8.prototype.restart = function restart(rom) {
-	clearInterval(this.interval.cycle);
-	clearInterval(this.interval.timer);
+	clearInterval(this.interval);
 
 	this.audio.canStop = true;
 	this.audio.stop();
