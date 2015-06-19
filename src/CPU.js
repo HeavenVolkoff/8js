@@ -86,7 +86,7 @@ function CPU(motherboard) {
 	 * This CPU clock in Khz
 	 * @type {number}
 	 */
-	this.clock = 4;
+	this.clock = 5;
 
 	/**
 	 * CPU Timers
