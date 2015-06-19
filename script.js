@@ -2,8 +2,19 @@
  * Created by Vítor Augusto da Silva Vasconcellos on 6/11/15.
  */
 
-(function ($, Chip8) {
+/**
+ * Document initialization
+ */
+$(document).ready(function() {
+	$('select').material_select();
+	$(".button-collapse").sideNav();
+
+	emulator(window.jQuery, window.Chip8);
+});
+
+function emulator($, Chip8) {
 	'use strict';
+	var speedSelect = $('#speedSelect');
 	var romInput = $('#romInput');
 	var fileReader = new FileReader();
 	var canvas = $('#chip8')[0];
@@ -19,6 +30,12 @@
 	$('#resetButton').click(function(){
 		if(chip8){
 			chip8.restart();
+		}
+	});
+
+	speedSelect.change(function(){
+		if(chip8){
+			chip8.cpu.changeClock(speedSelect.val());
 		}
 	});
 
@@ -65,4 +82,4 @@
 
 		fileReader.readAsBinaryString(file);
 	});
-})(window.jQuery, window.Chip8);
+}
