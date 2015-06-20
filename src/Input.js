@@ -47,7 +47,7 @@ Input.prototype.isKeyPressed = function isKeyPressed(key) {
 Input.prototype.keyDown = function keyDown(key) {
 	if (this.bind[key]) {
 		this.keyboard[this.bind[key]] = true;
-		this.emit('keypress');
+		this.emit('keypress', key);
 	}
 };
 
